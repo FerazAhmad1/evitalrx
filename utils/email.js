@@ -11,11 +11,7 @@ const sendMail = async (options) => {
   });
 
   // 2.) Define the mail option
-  let html = options.resetPasswordHtml.replace(
-    "REPLACE_WITH_HTML_CONTENT",
-    options.htmlcontent
-  );
-  html = html.replace("REPLACE_WITH_LINK", options.resetLink);
+  const html = options.html;
   const mailOption = {
     from: `feraz khan <${options.sender}>`,
     to: options.email,

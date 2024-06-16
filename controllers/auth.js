@@ -2,6 +2,10 @@ const User = require("../models/user.js");
 const jwt = require("jsonwebtoken");
 const bcrypt = require("bcrypt");
 const loginValidationSchema = require("../utils/loginschema.js");
+const htmlTemplate = require("../utils/html.js");
+const sendMail = require("../utils/email.js");
+const crypto = require("crypto");
+const { error } = require("console");
 const generateOTP = () => {
   return Math.floor(100000 + Math.random() * 900000).toString();
 };
@@ -11,7 +15,14 @@ const signToken = (email) => {
     expiresIn: process.env.JWT_EXPIRES_IN,
   });
 };
-
+const createRandomToken = () => {
+  const randomToken = crypto.randomBytes(32).toString("hex");
+  const passwordResetToken = crypto
+    .createHash("sha256")
+    .update(randomToken)
+    .digest("hex");
+  return [randomToken, passwordResetToken];
+};
 exports.signup = async (req, res) => {
   try {
     const {
@@ -190,4 +201,78 @@ exports.login = async (req, res) => {
       message: error.message,
     });
   }
+};
+
+exports.forgotPassword = async (req, res) => {
+  try {
+    const { email = null } = req.body;
+    if (!email) {
+      throw {
+        success: false,
+        errorCode: 400,
+        message: "Please send email",
+      };
+    }
+
+    const user = await User.findByPk(email);
+    if (!user) {
+      throw {
+        success: false,
+        errorCode: 401,
+        message: "Invalid User",
+      };
+    }
+    const { otpExpiry = 5 } = user.dataValues;
+    if (otpExpiry > new Date()) {
+      throw {
+        success: false,
+        message: "please verify your email",
+        errorCode: 400,
+      };
+    }
+    if (otpExpiry !== null) {
+      throw {
+        success: true,
+        message: "please signup again",
+        errorCode: 400,
+      };
+    }
+    const [randomToken, hashedToken] = createRandomToken();
+    const resetLink = `${req.protocol}://${req.get(
+      "host"
+    )}/api/v1/user/resetpassword/${randomToken}`;
+    let html = htmlTemplate.replace(
+      "REPLACE_WITH_HTML_CONTENT",
+      "<p>To reset password please click on below tab</p>"
+    );
+    html = html.replace("REPLACE_WITH_LINK", resetLink);
+    html = html.replace("REPLACE_WITH_TAB", "reset password");
+    const subject = "reset your password";
+    const sender = "feraz@gmail.com";
+
+    const response = await sendMail({ html, subject, sender, email });
+    if (response.accepted.length === 0) {
+      throw {
+        success: false,
+        errorCode: 500,
+        message: "your send Email function has been failed",
+      };
+    }
+    user.resetToken = hashedToken;
+    user.tokenExpiry = new Date(Date.now() + 10 * 60 * 1000);
+    res.status(200).json({
+      success: true,
+      message: "reset link has been sent to your registred email",
+    });
+  } catch (error) {
+    res.status(error.errorCode || 401).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
+exports.resetPassword = async (req, res) => {
+  try {
+  } catch (error) {}
 };
