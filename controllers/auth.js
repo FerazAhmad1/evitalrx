@@ -1,6 +1,7 @@
 const User = require("../models/user.js");
 const jwt = require("jsonwebtoken");
 const bcrypt = require("bcrypt");
+const loginValidationSchema = require("../utils/loginschema.js");
 const generateOTP = () => {
   return Math.floor(100000 + Math.random() * 900000).toString();
 };
@@ -127,4 +128,66 @@ exports.verifyOtp = async (req, res) => {
   }
 };
 
-exports.login = (req, res) => {};
+exports.login = async (req, res) => {
+  try {
+    const { email = null, password = null } = req.body;
+    try {
+      const validate = await applyValidation(
+        { email, password },
+        loginValidationSchema
+      );
+    } catch (error) {
+      res.status(error.errorCode).json({
+        success: false,
+        message: error.message,
+      });
+
+      return;
+    }
+    const user = await User.findByPk(email);
+    if (!user) {
+      throw {
+        message: "user not found",
+      };
+    }
+    const { otpExpiry, password: databasePassword } = user.dataValues;
+    if (otpExpiry > new Date()) {
+      throw {
+        success: false,
+        message: "verify your email",
+      };
+    } else if (otpExpiry !== null) {
+      throw { message: "signup again" };
+    }
+    const verify = await bcrypt.compare(password, databasePassword);
+    if (!verify) {
+      throw {
+        message: "Invalid User or password",
+      };
+    }
+
+    const token = signToken(email);
+
+    const cookieOption = {
+      expires: new Date(
+        Date.now() + process.env.JWT_COOKIE_EXPIRE_IN * 24 * 60 * 60 * 1000
+      ),
+      // this makes cookie only be send to encripted connection,basically using https
+      httpOnly: true,
+    };
+
+    if (process.env.NODE_ENV === "production") {
+      cookieOption.secure = true;
+    }
+    res.cookie("jwt", token, cookieOption);
+    res.status(200).json({
+      success: false,
+      token,
+    });
+  } catch (error) {
+    res.status(error.errorCode || 401).json({
+      success: error.success || false,
+      message: error.message,
+    });
+  }
+};
