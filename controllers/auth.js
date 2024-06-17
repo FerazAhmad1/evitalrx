@@ -274,5 +274,74 @@ exports.forgotPassword = async (req, res) => {
 
 exports.resetPassword = async (req, res) => {
   try {
-  } catch (error) {}
+    const { token = null } = req.params;
+    const { email = null, password = null } = req.body;
+    if (!token) {
+      throw {
+        message: "Invalid user",
+      };
+    }
+    if (!email) {
+      throw {
+        success: false,
+        errorCode: 401,
+        message: "Invalid User",
+      };
+    }
+    if (!password) {
+      throw {
+        errorCode: 400,
+        message: "Please send password",
+      };
+    }
+    const resetToken = crypto.createHash("sha256").update(token).digest("hex");
+
+    const user = await User.findOne({ where: { resetToken } });
+    if (!user) {
+      throw {
+        errorCode: 401,
+        success: false,
+        message: "unauthorize user",
+      };
+    }
+    const { tokenExpiry = null, email: databseEmail = null } = user.dataValues;
+    if (email !== databseEmail) {
+      throw {
+        errorCode: 401,
+        success: false,
+        message: "unauthorize user",
+      };
+    }
+    if (tokenExpiry !== null && tokenExpiry < new Date()) {
+      user.tokenExpiry = undefined;
+      user.resetToken = undefined;
+      await user.save();
+      throw {
+        status: false,
+        errorCode: 400,
+        message: "This link has been expire",
+      };
+    } else if (tokenExpiry === null) {
+      throw {
+        success: false,
+        errorCode: 400,
+        message: "do forgot password then you can get reset link",
+      };
+    }
+
+    user.password = password;
+    user.tokenExpiry = undefined;
+    user.resetToken = undefined;
+    await user.save();
+
+    res.status(200).json({
+      success: true,
+      message: "you success fully change your password",
+    });
+  } catch (error) {
+    res.status(error.errorCode || 401).json({
+      success: error.success || false,
+      message: error.message,
+    });
+  }
 };
