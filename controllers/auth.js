@@ -47,6 +47,7 @@ const {
 const crypto = require("crypto");
 const { error } = require("console");
 const { promisify } = require("util");
+
 exports.signup = async (req, res) => {
   try {
     const {
@@ -180,7 +181,6 @@ exports.login = async (req, res) => {
       return;
     }
     const user = await User.findByPk(email);
-    console.log("UUUUUUUUUUUUUUUUUUUUU", user);
     if (!user) {
       throw {
         message: USER_NOT_EXIST,
@@ -378,7 +378,6 @@ exports.protect = async (req, res, next) => {
   try {
     // 1.) check if token is present
     let token;
-    console.log("yes 67");
     if (
       req.headers.authorization &&
       req.headers.authorization.startsWith("Bearer")
