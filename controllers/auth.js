@@ -211,6 +211,7 @@ exports.login = async (req, res) => {
 
 exports.forgotPassword = async (req, res) => {
   try {
+    console.log("ZZZZZZZZZZZZZZZZZZZZZZZZZZZ");
     const { email = null } = req.body;
     if (!email) {
       throw {
