@@ -329,7 +329,6 @@ exports.resetPassword = async (req, res) => {
         message: "do forgot password then you can get reset link",
       };
     }
-
     user.password = password;
     user.tokenExpiry = undefined;
     user.resetToken = undefined;
@@ -396,4 +395,45 @@ exports.protect = async (req, res, next) => {
     });
   }
 };
-exports.updateProfile = (req, res) => {};
+exports.updateProfile = async (req, res) => {
+  try {
+    const {
+      password = null,
+      dob = null,
+      name = null,
+      email = null,
+      gender = null,
+      address = null,
+    } = req.body;
+    if (password) {
+      req.user.password = password;
+    }
+    if (dob) {
+      req.user.dob = dob;
+    }
+    if (name) {
+      req.user.name = name;
+    }
+    if (email) {
+      req.user.email = email;
+    }
+
+    if (gender) {
+      req.user.gender = gender;
+    }
+    if (address) {
+      req.user.address = address;
+    }
+    await req.user.validate();
+    await req.user.save();
+    res.status(200).json({
+      success: true,
+      message: "your profile has been update successfully",
+    });
+  } catch (error) {
+    res.status(400).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
