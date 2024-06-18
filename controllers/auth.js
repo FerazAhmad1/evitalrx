@@ -265,7 +265,9 @@ exports.forgotPassword = async (req, res) => {
       };
     }
     user.resetToken = hashedToken;
+
     user.tokenExpiry = new Date(Date.now() + 10 * 60 * 1000);
+    await user.save();
     res.status(200).json({
       success: true,
       message: "reset link has been sent to your registred email",
