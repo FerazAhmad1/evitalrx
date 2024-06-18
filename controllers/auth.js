@@ -6,6 +6,7 @@ const htmlTemplate = require("../utils/html.js");
 const sendMail = require("../utils/email.js");
 const crypto = require("crypto");
 const { error } = require("console");
+const { promisify } = require("util");
 const generateOTP = () => {
   return Math.floor(100000 + Math.random() * 900000).toString();
 };
@@ -345,3 +346,54 @@ exports.resetPassword = async (req, res) => {
     });
   }
 };
+exports.protect = async (req, res, next) => {
+  try {
+    // 1.) check if token is present
+    let token;
+    console.log("yes 67");
+    if (
+      req.headers.authorization &&
+      req.headers.authorization.startsWith("Bearer")
+    ) {
+      token = req.headers.authorization.split(" ")[1];
+      console.log(req.headers.authorization.split(" ")[1]);
+    }
+    if (!token) {
+      throw Error({
+        message: "you are not logged in please login to get access",
+        status: 401,
+      });
+    }
+
+    // 2.) verify and decode token
+
+    const decoded = await promisify(jwt.verify)(token, process.env.JWT_SECRET);
+    const { email, iat } = decoded;
+    const user = await User.findByPk(email);
+    if (!user) {
+      throw {
+        success: false,
+        message: "This user does not exist",
+      };
+    }
+    const { changePasswordAt = null } = user.dataValues;
+    if (changePasswordAt) {
+      const tokenIssueDAte = new Date(iat * 1000);
+      if (changePasswordAt > tokenIssueDAte) {
+        throw {
+          errorCode: 400,
+          success: false,
+          message: "This is an old token",
+        };
+      }
+    }
+    req.user = user;
+    next();
+  } catch (error) {
+    res.status(error.errorCode || 401).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+exports.updateProfile = (req, res) => {};

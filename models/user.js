@@ -49,6 +49,10 @@ const User = sequelize.define("User", {
     type: DataTypes.DATE,
     allowNull: true,
   },
+  changePasswordAt: {
+    type: DataTypes.DATEONLY,
+    allowNull: true,
+  },
 });
 
 User.addHook("beforeSave", "hashedpassword", async function (user, option) {
@@ -56,6 +60,14 @@ User.addHook("beforeSave", "hashedpassword", async function (user, option) {
     const hashedPassword = await bcrypt.hash(user.password, 12);
     user.password = hashedPassword;
   }
-  return;
 });
+User.addHook(
+  "beforeSave",
+  "updatingpasswordchangeTime",
+  async function (user, option) {
+    if (!user.isNewRecord && user.changed("password")) {
+      user.changePasswordAt = new Date(Date.now() - 1000);
+    }
+  }
+);
 module.exports = User;
