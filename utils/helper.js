@@ -8,3 +8,19 @@ exports.applyValidation = async (object, schema) => {
     throw error;
   }
 };
+exports.generateOTP = () => {
+  return Math.floor(100000 + Math.random() * 900000).toString();
+};
+exports.signToken = (email) => {
+  return jwt.sign({ email }, process.env.JWT_SECRET, {
+    expiresIn: process.env.JWT_EXPIRES_IN,
+  });
+};
+exports.createRandomToken = () => {
+  const randomToken = crypto.randomBytes(32).toString("hex");
+  const passwordResetToken = crypto
+    .createHash("sha256")
+    .update(randomToken)
+    .digest("hex");
+  return [randomToken, passwordResetToken];
+};

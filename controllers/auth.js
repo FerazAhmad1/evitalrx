@@ -4,27 +4,49 @@ const bcrypt = require("bcrypt");
 const loginValidationSchema = require("../utils/loginschema.js");
 const htmlTemplate = require("../utils/html.js");
 const sendMail = require("../utils/email.js");
-const { applyValidation } = require("../utils/helper.js");
+const {
+  MESSAGES,
+  STATUS_CODES,
+  EMAIL,
+  OTP_EXPIRY_DURATION,
+} = require("../CONSTANTS.js");
+const {
+  VALIDATION_ERROR,
+  NAME,
+  EMAIL,
+  UPDATE_SUCCESS,
+  DOB,
+  GENDER,
+  PASSWORD,
+  ADDRESS,
+  OLD_TOKEN,
+  NOT_LOGGED_IN,
+  RESET_PASSWORD_SUCCESS,
+  FORGOT_PASSWORD_GET_RESET_LINK,
+  TOKEN_EXPIRED,
+  SEND_PASSWORD,
+  RESET_LINK_SENT,
+  INVALID_USER,
+  FAILED_EMAIL_SEND,
+  EMAIL_NOT_FOUND,
+  INVALID_USER_OR_PASSWORD,
+  SIGN_UP_AGAIN,
+  EMAIL_ALREADY_REGISTERED,
+  USER_NOT_EXIST,
+  VERIFY_EMAIL,
+  CHECK_EMAIL,
+  UNAUTHORIZED_USER,
+  INVALID_OTP_OR_USER,
+} = MESSAGES;
+const {
+  applyValidation,
+  generateOTP,
+  signToken,
+  createRandomToken,
+} = require("../utils/helper.js");
 const crypto = require("crypto");
 const { error } = require("console");
 const { promisify } = require("util");
-const generateOTP = () => {
-  return Math.floor(100000 + Math.random() * 900000).toString();
-};
-
-const signToken = (email) => {
-  return jwt.sign({ email }, process.env.JWT_SECRET, {
-    expiresIn: process.env.JWT_EXPIRES_IN,
-  });
-};
-const createRandomToken = () => {
-  const randomToken = crypto.randomBytes(32).toString("hex");
-  const passwordResetToken = crypto
-    .createHash("sha256")
-    .update(randomToken)
-    .digest("hex");
-  return [randomToken, passwordResetToken];
-};
 exports.signup = async (req, res) => {
   try {
     const {
@@ -46,7 +68,7 @@ exports.signup = async (req, res) => {
       !password
     ) {
       throw {
-        message: "validation error",
+        message: VALIDATION_ERROR,
       };
     }
     const userData = await User.findByPk(email);
@@ -54,13 +76,11 @@ exports.signup = async (req, res) => {
       const { otpExpiry: expired, verify = null } = userData.dataValues;
       if (expired === null) {
         throw {
-          message: "this email is already registers",
+          message: EMAIL_ALREADY_REGISTERED,
         };
       } else if (expired > new Date()) {
-        console.log(expired, "gdfgdgdfgdgfdfgdghdghdghghghhgdghhgdghdhd");
-
         throw {
-          message: "verify your email",
+          message: VERIFY_EMAIL,
         };
       } else {
         await userData.destroy();
@@ -88,7 +108,7 @@ exports.signup = async (req, res) => {
       success: true,
       otp,
       link,
-      messge: "check your email ",
+      messge: CHECK_EMAIL,
     });
   } catch (error) {
     console.log(error.message);
@@ -107,14 +127,14 @@ exports.verifyOtp = async (req, res) => {
     if (!user) {
       throw {
         success: false,
-        message: "you are not authorize to perfom this action",
+        message: UNAUTHORIZED_USER,
       };
     }
     const { otpExpiry, otp: dataBaseOtp } = user.dataValues;
 
     if (otpExpiry < new Date()) {
       throw {
-        message: "Invalid otp or user not found",
+        message: INVALID_OTP_OR_USER,
       };
     }
     console.log(otp, dataBaseOtp);
@@ -122,7 +142,7 @@ exports.verifyOtp = async (req, res) => {
     console.log("GGHHJHJHJFHJFJHFJFJJH", verifyOtp);
     if (!verifyOtp) {
       throw {
-        message: "Invalid otp or user not found",
+        message: INVALID_OTP_OR_USER,
       };
     }
 
@@ -163,23 +183,23 @@ exports.login = async (req, res) => {
     console.log("UUUUUUUUUUUUUUUUUUUUU", user);
     if (!user) {
       throw {
-        message: "user not found",
+        message: USER_NOT_EXIST,
       };
     }
     const { otpExpiry, password: databasePassword } = user.dataValues;
     if (otpExpiry > new Date()) {
       throw {
         success: false,
-        message: "verify your email",
+        message: VERIFY_EMAIL,
       };
     } else if (otpExpiry !== null) {
-      throw { message: "signup again" };
+      throw { message: SIGN_UP_AGAIN };
     }
     const verify = await bcrypt.compare(password, databasePassword);
     console.log("dferederederder", verify);
     if (!verify) {
       throw {
-        message: "Invalid User or password",
+        message: INVALID_USER_OR_PASSWORD,
       };
     }
 
@@ -217,7 +237,7 @@ exports.forgotPassword = async (req, res) => {
       throw {
         success: false,
         errorCode: 400,
-        message: "Please send email",
+        message: EMAIL_NOT_FOUND,
       };
     }
 
@@ -226,21 +246,21 @@ exports.forgotPassword = async (req, res) => {
       throw {
         success: false,
         errorCode: 401,
-        message: "Invalid User",
+        message: INVALID_USER,
       };
     }
     const { otpExpiry = 5 } = user.dataValues;
     if (otpExpiry > new Date()) {
       throw {
         success: false,
-        message: "please verify your email",
+        message: VERIFY_EMAIL,
         errorCode: 400,
       };
     }
     if (otpExpiry !== null) {
       throw {
         success: true,
-        message: "please signup again",
+        message: SIGN_UP_AGAIN,
         errorCode: 400,
       };
     }
@@ -262,7 +282,7 @@ exports.forgotPassword = async (req, res) => {
       throw {
         success: false,
         errorCode: 500,
-        message: "your send Email function has been failed",
+        message: FAILED_EMAIL_SEND,
       };
     }
     user.resetToken = hashedToken;
@@ -271,7 +291,7 @@ exports.forgotPassword = async (req, res) => {
     await user.save();
     res.status(200).json({
       success: true,
-      message: "reset link has been sent to your registred email",
+      message: RESET_LINK_SENT,
     });
   } catch (error) {
     res.status(error.errorCode || 401).json({
@@ -287,20 +307,20 @@ exports.resetPassword = async (req, res) => {
     const { email = null, password = null } = req.body;
     if (!token) {
       throw {
-        message: "Invalid user",
+        message: INVALID_USER,
       };
     }
     if (!email) {
       throw {
         success: false,
         errorCode: 401,
-        message: "Invalid User",
+        message: INVALID_USER,
       };
     }
     if (!password) {
       throw {
         errorCode: 400,
-        message: "Please send password",
+        message: SEND_PASSWORD,
       };
     }
     const resetToken = crypto.createHash("sha256").update(token).digest("hex");
@@ -311,7 +331,7 @@ exports.resetPassword = async (req, res) => {
       throw {
         errorCode: 401,
         success: false,
-        message: "unauthorize user",
+        message: UNAUTHORIZED_USER,
       };
     }
     const { tokenExpiry = null, email: databseEmail = null } = user.dataValues;
@@ -319,7 +339,7 @@ exports.resetPassword = async (req, res) => {
       throw {
         errorCode: 401,
         success: false,
-        message: "unauthorize user",
+        message: UNAUTHORIZED_USER,
       };
     }
     if (tokenExpiry !== null && tokenExpiry < new Date()) {
@@ -329,13 +349,13 @@ exports.resetPassword = async (req, res) => {
       throw {
         status: false,
         errorCode: 400,
-        message: "This link has been expire",
+        message: TOKEN_EXPIRED,
       };
     } else if (tokenExpiry === null) {
       throw {
         success: false,
         errorCode: 400,
-        message: "do forgot password then you can get reset link",
+        message: FORGOT_PASSWORD_GET_RESET_LINK,
       };
     }
     user.password = password;
@@ -345,7 +365,7 @@ exports.resetPassword = async (req, res) => {
 
     res.status(200).json({
       success: true,
-      message: "you success fully change your password",
+      message: RESET_PASSWORD_SUCCESS,
     });
   } catch (error) {
     res.status(error.errorCode || 401).json({
@@ -368,7 +388,7 @@ exports.protect = async (req, res, next) => {
     }
     if (!token) {
       throw Error({
-        message: "you are not logged in please login to get access",
+        message: NOT_LOGGED_IN,
         status: 401,
       });
     }
@@ -381,7 +401,7 @@ exports.protect = async (req, res, next) => {
     if (!user) {
       throw {
         success: false,
-        message: "This user does not exist",
+        message: UNAUTHORIZED_USER,
       };
     }
     const { changePasswordAt = null } = user.dataValues;
@@ -391,7 +411,7 @@ exports.protect = async (req, res, next) => {
         throw {
           errorCode: 400,
           success: false,
-          message: "This is an old token",
+          message: OLD_TOKEN,
         };
       }
     }
@@ -417,34 +437,34 @@ exports.updateProfile = async (req, res) => {
     } = req.body;
     if (password) {
       req.user.password = password;
-      message += "password ,";
+      message += PASSWORD;
     }
     if (dob) {
       req.user.dob = dob;
-      message += "dob ,";
+      message += DOB;
     }
     if (name) {
       req.user.name = name;
-      message += "name ,";
+      message += NAME;
     }
     if (email) {
       req.user.email = email;
-      message += "email ,";
+      message += EMAIL;
     }
 
     if (gender) {
       req.user.gender = gender;
-      message += "gender";
+      message += GENDER;
     }
     if (address) {
       req.user.address = address;
-      message += "adress";
+      message += ADDRESS;
     }
     await req.user.validate();
     await req.user.save();
     res.status(200).json({
       success: true,
-      message: `${message} has been update successfully`,
+      message: `${message} ${UPDATE_SUCCESS}`,
     });
   } catch (error) {
     res.status(400).json({
