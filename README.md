@@ -104,7 +104,8 @@ npm start
      ```bash
       https://localhost:3000/api/v1/user/login
      ```
-     Request body
+
+      Request body
      
        ```json
         {
@@ -118,7 +119,7 @@ npm start
       ```json
         {
             "success": true,
-            "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJlbWFpbCI6ImtoYW5mZXJhejU0NkBnbWFpbC5jb20iLCJpYXQiOjE3MTg2ODM1MTAsImV4cCI6MTcyNjQ1OTUxMH0.2JFR3BKs1uaqJL03F2_PIvxhYXcaVP9mDEmkS4yugh8"
+            "token":             "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJlbWFpbCI6ImtoYW5mZXJhejU0NkBnbWFpbC5jb20iLCJpYXQiOjE3MTg2ODM1MTAsImV4cCI6MTcyNjQ1OTUxMH0.2JFR3BKs1uaqJL03F2_PIvxhYXcaVP9mDEmkS4yugh8"
         }
       ```
 
@@ -142,6 +143,26 @@ npm start
         "message": "reset link has been sent to your registred email"
       }
       ```
+  5.Reset Password API
+  ```bash
+      https://localhost:3000/api/v1/user/forgotpassword
+  ```
+   Request body
+     
+   ```json
+        {
+          "email": "khanferaz546@gmail.com"
+        }
+   ```
+    
+   Response
+    
+   ```json
+           {
+             "success": true,
+             "message": "you success fully change your password"
+         }
+   ```
   5. Update Profile API
      ```bash
       https://localhost:3000/api/v1/user/updateprofile
