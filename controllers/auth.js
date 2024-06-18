@@ -198,7 +198,7 @@ exports.login = async (req, res) => {
     }
     res.cookie("jwt", token, cookieOption);
     res.status(200).json({
-      success: false,
+      success: true,
       token,
     });
   } catch (error) {
@@ -301,8 +301,9 @@ exports.resetPassword = async (req, res) => {
       };
     }
     const resetToken = crypto.createHash("sha256").update(token).digest("hex");
-
+    console.log(resetToken);
     const user = await User.findOne({ where: { resetToken } });
+    console.log(user);
     if (!user) {
       throw {
         errorCode: 401,

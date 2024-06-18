@@ -11,7 +11,7 @@ app.use("/api/v1/user", userRouter);
 
 //
 (async () => {
-  const data = await sequelize.sync({ force: true });
+  const data = await sequelize.sync();
 })();
 
 module.exports = app;
