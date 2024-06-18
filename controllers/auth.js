@@ -4,6 +4,7 @@ const bcrypt = require("bcrypt");
 const loginValidationSchema = require("../utils/loginschema.js");
 const htmlTemplate = require("../utils/html.js");
 const sendMail = require("../utils/email.js");
+const { applyValidation } = require("../utils/helper.js");
 const crypto = require("crypto");
 const { error } = require("console");
 const { promisify } = require("util");
@@ -77,9 +78,11 @@ exports.signup = async (req, res) => {
       dob,
       gender,
       address,
+      password,
       otp: hashedOtp,
       otpExpiry,
     });
+    console.log(user);
     const link = `${req.protocol}://${req.get("host")}/api/v1/user/verifyotp`;
     res.status(200).json({
       success: true,
@@ -149,7 +152,7 @@ exports.login = async (req, res) => {
         loginValidationSchema
       );
     } catch (error) {
-      res.status(error.errorCode).json({
+      res.status(error.errorCode || 400).json({
         success: false,
         message: error.message,
       });
@@ -157,6 +160,7 @@ exports.login = async (req, res) => {
       return;
     }
     const user = await User.findByPk(email);
+    console.log("UUUUUUUUUUUUUUUUUUUUU", user);
     if (!user) {
       throw {
         message: "user not found",
@@ -172,6 +176,7 @@ exports.login = async (req, res) => {
       throw { message: "signup again" };
     }
     const verify = await bcrypt.compare(password, databasePassword);
+    console.log("dferederederder", verify);
     if (!verify) {
       throw {
         message: "Invalid User or password",
@@ -397,6 +402,7 @@ exports.protect = async (req, res, next) => {
 };
 exports.updateProfile = async (req, res) => {
   try {
+    let message = "";
     const {
       password = null,
       dob = null,
@@ -407,28 +413,34 @@ exports.updateProfile = async (req, res) => {
     } = req.body;
     if (password) {
       req.user.password = password;
+      message += "password ,";
     }
     if (dob) {
       req.user.dob = dob;
+      message += "dob ,";
     }
     if (name) {
       req.user.name = name;
+      message += "name ,";
     }
     if (email) {
       req.user.email = email;
+      message += "email ,";
     }
 
     if (gender) {
       req.user.gender = gender;
+      message += "gender";
     }
     if (address) {
       req.user.address = address;
+      message += "adress";
     }
     await req.user.validate();
     await req.user.save();
     res.status(200).json({
       success: true,
-      message: "your profile has been update successfully",
+      message: `${message} has been update successfully`,
     });
   } catch (error) {
     res.status(400).json({

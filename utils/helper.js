@@ -1,4 +1,4 @@
-const applyValidation = async (object, schema) => {
+exports.applyValidation = async (object, schema) => {
   try {
     const validate = await schema.validateAsync(object);
     return validate;
@@ -8,5 +8,3 @@ const applyValidation = async (object, schema) => {
     throw error;
   }
 };
-
-module.exports = { applyValidation };
