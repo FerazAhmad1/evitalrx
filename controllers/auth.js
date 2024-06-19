@@ -84,7 +84,7 @@ exports.signup = async (req, res) => {
           message: VERIFY_EMAIL,
         };
       } else {
-        await userData.destroy();
+        await userData.destroy(); // destroy user if user signup but did not verify the with in expiry time
       }
     }
 
@@ -167,6 +167,9 @@ exports.verifyOtp = async (req, res) => {
 exports.login = async (req, res) => {
   try {
     const { email = null, password = null } = req.body;
+
+    // 1.)Request body validation using Joi validation
+
     try {
       const validate = await applyValidation(
         { email, password },
@@ -180,13 +183,18 @@ exports.login = async (req, res) => {
 
       return;
     }
+
+    // 2.) finding if user exist
     const user = await User.findByPk(email);
     if (!user) {
       throw {
         message: USER_NOT_EXIST,
       };
     }
-    const { otpExpiry, password: databasePassword } = user.dataValues;
+
+    const { otpExpiry = 5, password: databasePassword } = user.dataValues;
+
+    // 3.) check user trying to login without verifying otp after signup
     if (otpExpiry > new Date()) {
       throw {
         success: false,
@@ -231,7 +239,7 @@ exports.login = async (req, res) => {
 
 exports.forgotPassword = async (req, res) => {
   try {
-    console.log("ZZZZZZZZZZZZZZZZZZZZZZZZZZZ");
+    // 1.) Check if email is present or not
     const { email = null } = req.body;
     if (!email) {
       throw {
@@ -240,6 +248,7 @@ exports.forgotPassword = async (req, res) => {
         message: EMAIL_NOT_FOUND,
       };
     }
+    // 2 .) check if user exist or not
 
     const user = await User.findByPk(email);
     if (!user) {
@@ -250,6 +259,9 @@ exports.forgotPassword = async (req, res) => {
       };
     }
     const { otpExpiry = 5 } = user.dataValues;
+
+    // 3.) check if user calling just after signup without verifying otp
+
     if (otpExpiry > new Date()) {
       throw {
         success: false,
@@ -257,6 +269,7 @@ exports.forgotPassword = async (req, res) => {
         errorCode: 400,
       };
     }
+    // 4. ) Check user calling forgot password without verifying otp after token expire
     if (otpExpiry !== null) {
       throw {
         success: true,
@@ -264,10 +277,17 @@ exports.forgotPassword = async (req, res) => {
         errorCode: 400,
       };
     }
+
+    // 5.)creating random token and hashed the same
     const [randomToken, hashedToken] = createRandomToken();
+
+    // 6.) RESET LINK
+
     const resetLink = `${req.protocol}://${req.get(
       "host"
     )}/api/v1/user/resetpassword/${randomToken}`;
+
+    // 7.) HTML for reset email
     let html = htmlTemplate.replace(
       "REPLACE_WITH_HTML_CONTENT",
       "<p>To reset password please click on below tab</p>"
@@ -277,6 +297,7 @@ exports.forgotPassword = async (req, res) => {
     const subject = "reset your password";
     const sender = "feraz@gmail.com";
 
+    // 8.) SENDING email
     const response = await sendMail({ html, subject, sender, email });
     if (response.accepted.length === 0) {
       throw {
@@ -285,9 +306,11 @@ exports.forgotPassword = async (req, res) => {
         message: FAILED_EMAIL_SEND,
       };
     }
+
+    // 9.)  RESETTING THE TOKEN AND EXPIRY of it for resetPassword aspi
     user.resetToken = hashedToken;
 
-    user.tokenExpiry = new Date(Date.now() + 10 * 60 * 1000);
+    user.tokenExpiry = new Date(Date.now() + OTP_EXPIRY_DURATION);
     await user.save();
     res.status(200).json({
       success: true,
@@ -305,11 +328,14 @@ exports.resetPassword = async (req, res) => {
   try {
     const { token = null } = req.params;
     const { email = null, password = null } = req.body;
+    // 1.) check token is prsent
     if (!token) {
       throw {
         message: INVALID_USER,
       };
     }
+
+    // 2.) check if email is present or nor
     if (!email) {
       throw {
         success: false,
@@ -317,16 +343,20 @@ exports.resetPassword = async (req, res) => {
         message: INVALID_USER,
       };
     }
+    // 3.) check if password is present or not
+
     if (!password) {
       throw {
         errorCode: 400,
         message: SEND_PASSWORD,
       };
     }
+    // 4.)Hashed the token with same that use to create
     const resetToken = crypto.createHash("sha256").update(token).digest("hex");
-    console.log(resetToken);
+
+    // 5.Find user on the basis of hashed user
     const user = await User.findOne({ where: { resetToken } });
-    console.log(user);
+
     if (!user) {
       throw {
         errorCode: 401,
@@ -334,7 +364,10 @@ exports.resetPassword = async (req, res) => {
         message: UNAUTHORIZED_USER,
       };
     }
+
     const { tokenExpiry = null, email: databseEmail = null } = user.dataValues;
+
+    // 6.) validate user on the basis of email from request body and present in database
     if (email !== databseEmail) {
       throw {
         errorCode: 401,
@@ -342,6 +375,8 @@ exports.resetPassword = async (req, res) => {
         message: UNAUTHORIZED_USER,
       };
     }
+
+    // 7.) check if token is expired
     if (tokenExpiry !== null && tokenExpiry < new Date()) {
       user.tokenExpiry = undefined;
       user.resetToken = undefined;
@@ -358,6 +393,8 @@ exports.resetPassword = async (req, res) => {
         message: FORGOT_PASSWORD_GET_RESET_LINK,
       };
     }
+
+    // 8.) RESETING the password
     user.password = password;
     user.tokenExpiry = undefined;
     user.resetToken = undefined;
