@@ -13,7 +13,7 @@ const {
 const {
   VALIDATION_ERROR,
   NAME,
-  EMAIL,
+  EMAILCONSTANT,
   UPDATE_SUCCESS,
   DOB,
   GENDER,
