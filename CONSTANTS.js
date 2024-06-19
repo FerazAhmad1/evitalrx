@@ -27,7 +27,7 @@ module.exports = {
     DOB: "dob ,",
     MOBILE: "mobile ,",
     NAME: "name ,",
-    EMAIL: "email ,",
+    EMAILCONSTANT: "email ,",
     GENDER: "gender ,",
     ADDRESS: "ADRESS",
   },
