@@ -485,7 +485,7 @@ exports.updateProfile = async (req, res) => {
     }
     if (email) {
       req.user.email = email;
-      message += EMAIL;
+      message += EMAILCONSTANT;
     }
 
     if (gender) {

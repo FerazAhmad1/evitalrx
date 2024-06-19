@@ -8,18 +8,39 @@ const User = sequelize.define(
     name: {
       type: DataTypes.STRING,
       allowNull: false,
+      validate: {
+        is: {
+          args: /^[A-Za-z]+ [A-Za-z]+$/,
+          msg: "Name must contain only alphabetic characters and be in the format 'FirstName LastName' with exactly one space",
+        },
+        len: {
+          args: [3, 255], // Minimum length of 3 to account for "A B" as the shortest valid name
+          msg: "Name must be at least 3 characters long",
+        },
+      },
     },
     mobile: {
       type: DataTypes.STRING,
       allowNull: false,
       unique: true,
+      validate: {
+        isNumeric: {
+          msg: "Mobile number must contain only numeric characters",
+        },
+        len: {
+          args: [10, 10],
+          msg: "Mobile number must be exactly 10 digits long",
+        },
+      },
     },
     email: {
       type: DataTypes.STRING,
       allowNull: false,
       unique: true,
       validate: {
-        isEmail: true,
+        isEmail: {
+          msg: "Must be a valid email address",
+        },
       },
       primaryKey: true,
     },
@@ -42,6 +63,12 @@ const User = sequelize.define(
     password: {
       type: DataTypes.STRING,
       allowNull: false,
+      validate: {
+        len: {
+          args: [8, 255], // Minimum length of 8, maximum length can be specified as needed
+          msg: "Password must be at least 8 characters long",
+        },
+      },
     },
     otpExpiry: {
       type: DataTypes.DATE,
